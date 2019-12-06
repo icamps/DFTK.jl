@@ -6,6 +6,9 @@
 
 # The interface is `mix(m, basis, ρin, ρout) -> ρnext`
 
+using LinearMaps
+using IterativeSolvers
+
 """
 Kerker mixing: J^-1 ≈ α*G^2/(G0^2 + G^2)
 """
@@ -14,7 +17,7 @@ struct KerkerMixing{T <: Real}
     G0::T
 end
 KerkerMixing() = KerkerMixing(1, 1)
-function mix(m::KerkerMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray)
+function mix(m::KerkerMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray; kwargs...)
     Gsq = [sum(abs2, basis.model.recip_lattice * G)
            for G in G_vectors(basis)]
     ρin = ρin.fourier
@@ -30,10 +33,46 @@ struct SimpleMixing{T <: Real}
     α::T
 end
 SimpleMixing() = SimpleMixing(1)
-function mix(m::SimpleMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray)
+function mix(m::SimpleMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray; kwargs...)
     if m.α == 1
         return ρout # optimization
     else
         ρin + m.α * (ρout - ρin)
     end
+end
+
+struct HybridMixing end
+function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray;
+             LDOS=nothing, kwargs...)
+    LDOS == nothing && return ρout
+
+    # F : ρin -> ρout has derivative χ0 vc
+    # a Newton step would be ρn+1 = ρn + (1 -χ0 vc)^-1 (F(ρn) - ρn)
+    # We approximate -χ0 by a real-space multiplication by LDOS
+    # We want to solve J Δρ = ΔF with J = (1 - χ0 vc)
+    ΔF = ρout.real - ρin.real
+    devec(x) = reshape(x, size(ρin))
+    function Jop(x)
+        den = devec(x)
+        Gsq = [sum(abs2, basis.model.recip_lattice * G)
+               for G in G_vectors(basis)]
+        Gsq[1] = Inf # Don't act on DC
+        den_fourier = from_real(basis, den).fourier  # TODO r_to_G ??
+        pot_fourier = 4π ./ Gsq .* den_fourier
+        pot_real = from_fourier(basis, pot_fourier).real  # TODO G_to_r ??
+        den_real = real(LDOS .* pot_real)
+        vec(den + den_real)
+
+        # # χ0inp = LDOS .* inp
+        # χ0inp = LDOS .* inp
+        # χ0inp_four = from_real(basis, χ0inp).fourier
+        # Gsq[1] = Inf # Don't act on DC
+        # vcχ0inp_four = 4π ./ Gsq .* χ0inp_four
+        # vcχ0inp_real = from_fourier(basis, vcχ0inp_four).real
+        # vec(inp + vcχ0inp_real)
+    end
+    J = LinearMap(Jop, length(ρin))
+    x = gmres(J, ΔF)
+    Δρ = devec(x)
+    from_real(basis, real(ρin.real + Δρ))
 end
