@@ -127,9 +127,12 @@ function self_consistent_field(basis::PlaneWaveBasis;
 
         # Compute ldos if needed ... this kind of a hack for now
         ldos = nothing
+        nos = nothing
         if isa(mixing, HybridMixing) && model.temperature > 0
             T = max(0.01, model.temperature)
-            ldos = LDOS(εF, basis, orben, ψ, smearing=smearing_fermi_dirac, T=T)
+            smearing = smearing_fermi_dirac
+            ldos = LDOS(εF, basis, orben, ψ, smearing=smearing, T=T)
+            nos = NOS(εF, basis, orben, smearing=smearing, T=T)
         end
 
         # mix it with ρin to get a proposal step
@@ -138,7 +141,7 @@ function self_consistent_field(basis::PlaneWaveBasis;
 
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext,
                 eigenvalues=eigenvalues, occupation=occupation, εF=εF, neval=neval,
-                ψ=ψ, ldos=ldos)
+                ψ=ψ, ldos=ldos, nos=nos)
         callback(info)
         is_converged(info) && return x
 
