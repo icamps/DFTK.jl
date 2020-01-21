@@ -9,8 +9,10 @@
 using LinearMaps
 using IterativeSolvers
 
-"""
-Kerker mixing: J^-1 ≈ α*G^2/(G0^2 + G^2)
+@doc raw"""
+Kerker mixing: ``J^{-1} ≈ \frac{α G^2}{(G0^2 + G^2}``
+
+Abinit calls ``1/G0`` the dielectric screening length (parameter *dielng*)
 """
 struct KerkerMixing{T <: Real}
     α::T
