@@ -32,7 +32,7 @@ function NOS(ε, basis, eigenvalues; smearing=basis.model.smearing, T=basis.mode
     # -f'((εik - ε)/T).
     #
     # To explicitly show the similarity with DOS and the T dependence we employ
-    # -f'((εik - ε)/T) = T * ( d/dε f_τ(εik - ε') )|_{ε' = ε}
+    # -f'((εik - ε)/T) = T * ( d/dδ f( (εik - δ)/T) )|_{δ = ε}
     for ik = 1:length(eigenvalues)
         n_symeqk = length(basis.ksymops[ik])  # Number of symmetry-equivalent k-Points
         for iband = 1:length(eigenvalues[ik])
