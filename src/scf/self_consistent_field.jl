@@ -102,6 +102,8 @@ function self_consistent_field(basis::PlaneWaveBasis;
     # We do density mixing in the real representation
     # TODO support other mixing types
     function fixpoint_map(x)
+        neval += 1
+
         # Get ρout by diagonalizing the Hamiltonian
         ρin = from_real(basis, x)
 
@@ -128,9 +130,13 @@ function self_consistent_field(basis::PlaneWaveBasis;
         # Compute ldos if needed ... this kind of a hack for now
         ldos = nothing
         nos = nothing
+        # LDOS on first iteration is pretty bad ... so do not do hybrid then
         if isa(mixing, HybridMixing) && model.temperature > 0
-            T = max(0.01, model.temperature)
-            smearing = smearing_fermi_dirac
+            T = max(mixing.ldos_temperature, model.temperature)
+            smearing = model.smearing
+            if !isnothing(mixing.ldos_smearing)
+                smearing = mixing.ldos_smearing
+            end
             ldos = LDOS(εF, basis, orben, ψ, smearing=smearing, T=T)
             nos = NOS(εF, basis, orben, smearing=smearing, T=T)
         end
@@ -139,9 +145,9 @@ function self_consistent_field(basis::PlaneWaveBasis;
         ρnext = mix(mixing, basis, ρin, ρout, LDOS=ldos)
         neval += 1
 
-        info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext,
+        info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,
                 eigenvalues=eigenvalues, occupation=occupation, εF=εF, neval=neval,
-                ψ=ψ, ldos=ldos, nos=nos)
+                ldos=ldos, nos=nos)
         callback(info)
         is_converged(info) && return x
 

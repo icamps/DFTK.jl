@@ -43,10 +43,15 @@ function mix(m::SimpleMixing, basis, ρin::RealFourierArray, ρout::RealFourierA
     end
 end
 
-struct HybridMixing end
+struct HybridMixing
+    α
+    ldos_temperature
+    ldos_smearing
+end
+HybridMixing(α=1, ldos_temperature=0.0) = HybridMixing(α, ldos_temperature, nothing)
 function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray;
              LDOS=nothing, kwargs...)
-    LDOS == nothing && return ρout
+    LDOS === nothing && return ρin + m.α * (ρout - ρin)  # Fallback to simple mixing
 
     # F : ρin -> ρout has derivative χ0 vc
     # a Newton step would be ρn+1 = ρn + (1 -χ0 vc)^-1 (F(ρn) - ρn)
@@ -76,5 +81,5 @@ function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierA
     J = LinearMap(Jop, length(ρin))
     x = gmres(J, ΔF)
     Δρ = devec(x)
-    from_real(basis, real(ρin.real + Δρ))
+    from_real(basis, real(ρin.real + m.α * Δρ))
 end
