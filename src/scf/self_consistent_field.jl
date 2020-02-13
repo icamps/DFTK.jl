@@ -130,20 +130,24 @@ function self_consistent_field(basis::PlaneWaveBasis;
         # Compute ldos if needed ... this kind of a hack for now
         ldos = nothing
         nos = nothing
-        # LDOS on first iteration is pretty bad ... so do not do hybrid then
         if isa(mixing, HybridMixing) && model.temperature > 0
-            T = max(mixing.ldos_temperature, model.temperature)
-            smearing = model.smearing
-            if !isnothing(mixing.ldos_smearing)
-                smearing = mixing.ldos_smearing
+            factor = 1
+            nos = NOS(εF, basis, eigenvalues, T=model.temperature)
+            for _ in 1:10
+                nos > mixing.ldos_nos && break
+                factor = min(factor * (mixing.ldos_nos / nos + 0.01), mixing.ldos_maxfactor)
+                nos = NOS(εF, basis, eigenvalues, T=factor * model.temperature)
+                factor >= mixing.ldos_maxfactor && break
             end
-            ldos = LDOS(εF, basis, orben, ψ, smearing=smearing, T=T)
-            nos = NOS(εF, basis, orben, smearing=smearing, T=T)
+            if nos < mixing.ldos_nos && factor < mixing.ldos_maxfactor
+                @warn("Small NOS for HybridMixing LDOS computation", nos,
+                      temperature_factor=factor)
+            end
+            ldos = LDOS(εF, basis, eigenvalues, ψ, T=factor * model.temperature)
         end
 
         # mix it with ρin to get a proposal step
         ρnext = mix(mixing, basis, ρin, ρout, LDOS=ldos)
-        neval += 1
 
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,
                 eigenvalues=eigenvalues, occupation=occupation, εF=εF, neval=neval,
