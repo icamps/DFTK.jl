@@ -44,11 +44,11 @@ function mix(m::SimpleMixing, basis, ρin::RealFourierArray, ρout::RealFourierA
 end
 
 struct HybridMixing
-    α
-    ldos_temperature
-    ldos_smearing
+    α          # Damping parameter
+    ldos_nos   # Minimal NOS value in for LDOS computation
+    ldos_maxfactor  # Maximal factor between electron temperature and LDOS temperature
 end
-HybridMixing(α=1, ldos_temperature=0.0) = HybridMixing(α, ldos_temperature, nothing)
+HybridMixing(α=1; ldos_nos=20, ldos_maxfactor=10) = HybridMixing(α, ldos_nos, ldos_maxfactor)
 function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray;
              LDOS=nothing, kwargs...)
     LDOS === nothing && return ρin + m.α * (ρout - ρin)  # Fallback to simple mixing
