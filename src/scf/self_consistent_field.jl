@@ -123,7 +123,7 @@ function self_consistent_field(basis::PlaneWaveBasis;
 
         # This computes the energy of the new state
         if compute_consistent_energies
-            energies, H = energy_hamiltonian(basis, ψ, occupation;
+            energies, _ = energy_hamiltonian(basis, ψ, occupation;
                                              ρ=ρout, eigenvalues=eigenvalues, εF=εF)
         end
 
@@ -149,9 +149,11 @@ function self_consistent_field(basis::PlaneWaveBasis;
         # mix it with ρin to get a proposal step
         ρnext = mix(mixing, basis, ρin, ρout, LDOS=ldos)
 
+        dtref = Ref(diagtol)
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,
                 eigenvalues=eigenvalues, occupation=occupation, εF=εF, neval=neval,
-                ldos=ldos, nos=nos)
+                ldos=ldos, nos=nos, dtref=dtref)
+        diagtol = dtref[]
         callback(info)
         is_converged(info) && return x
 
