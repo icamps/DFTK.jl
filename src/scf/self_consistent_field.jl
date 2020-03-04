@@ -79,7 +79,9 @@ function self_consistent_field(basis::PlaneWaveBasis;
                                mixing=SimpleMixing(),
                                callback=scf_default_callback,
                                is_converged=scf_convergence_energy_difference(tol),
-                               compute_consistent_energies=true
+                               compute_consistent_energies=true,
+                               mixing_initial=SimpleMixing(),
+                               n_initial=0,
                                )
     T = eltype(basis)
     model = basis.model
@@ -147,7 +149,12 @@ function self_consistent_field(basis::PlaneWaveBasis;
         end
 
         # mix it with ρin to get a proposal step
-        ρnext = mix(mixing, basis, ρin, ρout, LDOS=ldos)
+        ρnext = nothing
+        if neval <= n_initial
+            ρnext = mix(mixing_initial, basis, ρin, ρout, LDOS=ldos)
+        else
+            ρnext = mix(mixing, basis, ρin, ρout, LDOS=ldos)
+        end
 
         dtref = Ref(diagtol)
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,
