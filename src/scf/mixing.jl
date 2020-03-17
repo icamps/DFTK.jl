@@ -67,7 +67,7 @@ function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierA
         den_fourier = from_real(basis, den).fourier  # TODO r_to_G ??
         pot_fourier = 4π ./ Gsq .* den_fourier
         pot_real = from_fourier(basis, pot_fourier).real  # TODO G_to_r ??
-        den_real = real(LDOS .* pot_real)
+        den_real = real(LDOS .* pot_real - sum(LDOS .* pot_real) .* LDOS ./ sum(LDOS))
         vec(den + den_real)
 
         # # χ0inp = LDOS .* inp
