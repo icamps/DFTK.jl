@@ -67,16 +67,11 @@ function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierA
         den_fourier = from_real(basis, den).fourier  # TODO r_to_G ??
         pot_fourier = 4π ./ Gsq .* den_fourier
         pot_real = from_fourier(basis, pot_fourier).real  # TODO G_to_r ??
-        den_real = real(LDOS .* pot_real - sum(LDOS .* pot_real) .* LDOS ./ sum(LDOS))
-        vec(den + den_real)
 
-        # # χ0inp = LDOS .* inp
-        # χ0inp = LDOS .* inp
-        # χ0inp_four = from_real(basis, χ0inp).fourier
-        # Gsq[1] = Inf # Don't act on DC
-        # vcχ0inp_four = 4π ./ Gsq .* χ0inp_four
-        # vcχ0inp_real = from_fourier(basis, vcχ0inp_four).real
-        # vec(inp + vcχ0inp_real)
+        # apply χ0
+        den_real = -real(LDOS .* pot_real - sum(LDOS .* pot_real) .* LDOS ./ sum(LDOS))
+
+        vec(den - den_real)
     end
     J = LinearMap(Jop, length(ρin))
     x = gmres(J, ΔF)

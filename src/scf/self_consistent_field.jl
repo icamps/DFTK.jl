@@ -62,6 +62,21 @@ function scf_convergence_density_difference(tolerance)
     info -> norm(info.ρout.fourier - info.ρin.fourier) < tolerance
 end
 
+function get_effective_temperature(basis, temperature, εF, eigenvalues, ldos_nos, ldos_maxfactor)
+    factor = 1
+    nos = NOS(εF, basis, eigenvalues, T=temperature)
+    for _ in 1:10
+        nos > ldos_nos && break
+        factor = min(factor * (ldos_nos / nos + 0.01), ldos_maxfactor)
+        nos = NOS(εF, basis, eigenvalues, T=factor * temperature)
+        factor >= ldos_maxfactor && break
+    end
+    if nos < ldos_nos && factor < ldos_maxfactor
+        @warn("Small NOS for LDOS computation", nos,
+              temperature_factor=factor)
+    end
+    factor * temperature
+end
 
 """
 Solve the Kohn-Sham equations with a SCF algorithm, starting at ρ.
@@ -132,29 +147,16 @@ function self_consistent_field(basis::PlaneWaveBasis;
         # Compute ldos if needed ... this kind of a hack for now
         ldos = nothing
         nos = nothing
+        temperature = nothing
         if isa(mixing, HybridMixing) && model.temperature > 0
-            factor = 1
-            nos = NOS(εF, basis, eigenvalues, T=model.temperature)
-            for _ in 1:10
-                nos > mixing.ldos_nos && break
-                factor = min(factor * (mixing.ldos_nos / nos + 0.01), mixing.ldos_maxfactor)
-                nos = NOS(εF, basis, eigenvalues, T=factor * model.temperature)
-                factor >= mixing.ldos_maxfactor && break
-            end
-            if nos < mixing.ldos_nos && factor < mixing.ldos_maxfactor
-                @warn("Small NOS for HybridMixing LDOS computation", nos,
-                      temperature_factor=factor)
-            end
-            ldos = LDOS(εF, basis, eigenvalues, ψ, T=factor * model.temperature)
+            temperature = get_effective_temperature(basis, model.temperature, εF, eigenvalues, mixing.ldos_nos, mixing.ldos_maxfactor)
+            ldos = LDOS(εF, basis, eigenvalues, ψ, T=temperature)
         end
 
         # mix it with ρin to get a proposal step
         ρnext = nothing
-        if neval <= n_initial
-            ρnext = mix(mixing_initial, basis, ρin, ρout, LDOS=ldos)
-        else
-            ρnext = mix(mixing, basis, ρin, ρout, LDOS=ldos)
-        end
+        mixing_method = neval <= n_initial ? mixing_initial : mixing
+        ρnext = mix(mixing_method, basis, ρin, ρout; LDOS=ldos, ham=ham, ψ=ψ, occupation=occupation, εF=εF, temperature=temperature)
 
         dtref = Ref(diagtol)
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,

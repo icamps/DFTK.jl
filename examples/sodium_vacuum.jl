@@ -139,7 +139,6 @@ for i in 2:length(OUTPUTS)
     plot(ρ - OUTPUTS[end])
 end
 
-includet("../src/postprocess/chi_0.jl")
 χ0 = compute_χ0(scfres.ham)
 
 
