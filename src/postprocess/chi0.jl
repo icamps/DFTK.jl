@@ -80,7 +80,7 @@ end
 """
 Returns the change in density δρ for a given δV. Drop all non-diagonal terms with (f(εn)-f(εm))/(εn-εm) factor less than `droptol`. If `sternheimer_contribution` is false, only compute excitations inside the provided orbitals.
 """
-function apply_χ0(ham, δV, ψ, occupation, εF, eigenvalues; droptol=0, sternheimer_contribution=true)
+function apply_χ0(ham, δV, ψ, occupation, εF, eigenvalues; droptol=0, sternheimer_contribution=true, temperature=ham.basis.model.temperature)
     if droptol > 0 && sternheimer_contribution == true
         error("Droptol cannot be positive if sternheimer contribution is to be computed.")
     end
@@ -102,6 +102,7 @@ function apply_χ0(ham, δV, ψ, occupation, εF, eigenvalues; droptol=0, sternh
             ψnk = @views ψ[ik][:, n]
             ψnk_real = G_to_r(basis, basis.kpoints[ik], ψnk)
             εnk = eigenvalues[ik][n]
+            fnk = filled_occ * Smearing.occupation(model.smearing, (εnk-εF)/temperature)
 
             # 2Re fn ψn* δψn
             # we split δψn into its component on the computed and uncomputed states:
@@ -114,12 +115,13 @@ function apply_χ0(ham, δV, ψ, occupation, εF, eigenvalues; droptol=0, sternh
             # explicit contributions
             for m = 1:size(ψ[ik], 2)
                 εmk = eigenvalues[ik][m]
+                fmk = filled_occ * Smearing.occupation(model.smearing, (εmk-εF)/temperature)
                 factor = filled_occ * Smearing.occupation_divided_difference(
                     model.smearing,
                     εmk,
                     εnk,
                     εF,
-                    model.temperature)
+                    temperature)
                 (n != m) && (abs(factor) < droptol) && continue
                 ψmk = @views ψ[ik][:, m]
                 ψmk_real = G_to_r(basis, basis.kpoints[ik], ψmk)
@@ -131,7 +133,6 @@ function apply_χ0(ham, δV, ψ, occupation, εF, eigenvalues; droptol=0, sternh
 
             # Sternheimer contributions
             !(sternheimer_contribution) && continue
-            fnk = occupation[ik][n]
             abs(fnk) < eps(T) && continue
             # compute δψn by solving Q (H-εn) Q δψn = -Q δV ψn
             # we err on the side of caution here by applying Q a lot, there are optimizations to be made here
@@ -149,9 +150,9 @@ function apply_χ0(ham, δV, ψ, occupation, εF, eigenvalues; droptol=0, sternh
     end
 
     # Add variation wrt εF
-    if model.temperature > 0
-        ldos = LDOS(εF, basis, eigenvalues, ψ)
-        dos = DOS(εF, basis, eigenvalues)
+    if temperature > 0
+        ldos = LDOS(εF, basis, eigenvalues, ψ, T=temperature)
+        dos = DOS(εF, basis, eigenvalues, T=temperature)
         δρ .+= ldos .* dot(ldos, δV) .* dVol ./ dos
     end
 

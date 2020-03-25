@@ -144,11 +144,11 @@ function self_consistent_field(basis::PlaneWaveBasis;
                                              ρ=ρout, eigenvalues=eigenvalues, εF=εF)
         end
 
-        # Compute ldos if needed ... this kind of a hack for now
+        # Kind of a hack for now
         ldos = nothing
         nos = nothing
         temperature = nothing
-        if isa(mixing, HybridMixing) && model.temperature > 0
+        if (isa(mixing, HybridMixing) || isa(mixing, χ0Mixing)) && model.temperature > 0
             temperature = get_effective_temperature(basis, model.temperature, εF, eigenvalues, mixing.ldos_nos, mixing.ldos_maxfactor)
             ldos = LDOS(εF, basis, eigenvalues, ψ, T=temperature)
         end
@@ -156,7 +156,7 @@ function self_consistent_field(basis::PlaneWaveBasis;
         # mix it with ρin to get a proposal step
         ρnext = nothing
         mixing_method = neval <= n_initial ? mixing_initial : mixing
-        ρnext = mix(mixing_method, basis, ρin, ρout; LDOS=ldos, ham=ham, ψ=ψ, occupation=occupation, εF=εF, temperature=temperature)
+        ρnext = mix(mixing_method, basis, ρin, ρout; LDOS=ldos, ham=ham, ψ=ψ, occupation=occupation, εF=εF, eigenvalues=eigenvalues, temperature=temperature)
 
         dtref = Ref(diagtol)
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,
