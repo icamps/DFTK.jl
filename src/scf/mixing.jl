@@ -47,11 +47,19 @@ struct HybridMixing
     α          # Damping parameter
     ldos_nos   # Minimal NOS value in for LDOS computation
     ldos_maxfactor  # Maximal factor between electron temperature and LDOS temperature
+    G_blur
 end
-HybridMixing(α=1; ldos_nos=20, ldos_maxfactor=10) = HybridMixing(α, ldos_nos, ldos_maxfactor)
+HybridMixing(α=1; ldos_nos=20, ldos_maxfactor=10, G_blur=Inf) = HybridMixing(α, ldos_nos, ldos_maxfactor, G_blur)
 function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierArray;
              LDOS=nothing, kwargs...)
     LDOS === nothing && return ρin + m.α * (ρout - ρin)  # Fallback to simple mixing
+
+    # blur the LDOS
+    blur_factor(G) = exp(-(norm(G)/m.G_blur)^2)
+    LDOS_fourier = r_to_G(basis, complex.(LDOS))
+    LDOS_fourier .*= blur_factor.(basis.model.recip_lattice * G for G in G_vectors(basis))
+    println(norm(LDOS_fourier))
+    LDOS = real.(G_to_r(basis, LDOS_fourier))
 
     # F : ρin -> ρout has derivative χ0 vc
     # a Newton step would be ρn+1 = ρn + (1 -χ0 vc)^-1 (F(ρn) - ρn)
