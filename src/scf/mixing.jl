@@ -58,7 +58,7 @@ function mix(m::HybridMixing, basis, ρin::RealFourierArray, ρout::RealFourierA
     blur_factor(G) = exp(-(norm(G)/m.G_blur)^2)
     LDOS_fourier = r_to_G(basis, complex.(LDOS))
     LDOS_fourier .*= blur_factor.(basis.model.recip_lattice * G for G in G_vectors(basis))
-    println(norm(LDOS_fourier))
+    # println(norm(LDOS_fourier))
     LDOS = real.(G_to_r(basis, LDOS_fourier))
 
     # F : ρin -> ρout has derivative χ0 vc
