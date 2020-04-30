@@ -159,7 +159,8 @@ function self_consistent_field(basis::PlaneWaveBasis;
         dtref = Ref(diagtol)
         info = (ham=ham, energies=energies, ρin=ρin, ρout=ρout, ρnext=ρnext, ψ=ψ,
                 eigenvalues=eigenvalues, occupation=occupation, εF=εF, neval=neval,
-                ldos=ldos, nos=nos, dtref=dtref)
+                ldos=ldos, nos=nos, dtref=dtref,
+                ldos_temperature=factor * model.temperature)
         diagtol = dtref[]
         callback(info)
         is_converged(info) && return x
